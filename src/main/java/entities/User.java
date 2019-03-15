@@ -47,7 +47,7 @@ public class User {
         return username;
     }
 
-    private void setUsername(String username) {
+    public void setUsername(String username) {
         this.username = username;
     }
 
@@ -55,7 +55,7 @@ public class User {
         return password;
     }
 
-    private void setPassword(String password) {
+    public void setPassword(String password) {
         this.password = password;
     }
 
@@ -64,6 +64,17 @@ public class User {
     }
 
     private void setRegistrationDate(Date registrationDate) {
+
         this.registrationDate = registrationDate;
+    }
+
+    @Override
+    public String toString() {
+        return "User{" +
+                "id=" + id +
+                ", username='" + username + '\'' +
+                ", password='" + password + '\'' +
+                ", registrationDate=" + registrationDate +
+                '}';
     }
 }
