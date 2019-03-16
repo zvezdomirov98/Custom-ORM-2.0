@@ -75,6 +75,21 @@ public class EntityManager<E> implements DbContext<E> {
         return toList(rs);
     }
 
+    @Override
+    public E findFirst() throws InvocationTargetException, SQLException, InstantiationException, IllegalAccessException, NoSuchMethodException {
+        return find(WHERE_LIMIT_TEMPLATE).get(0);
+    }
+
+    @Override
+    public E findFirst(String where) throws InvocationTargetException, SQLException, InstantiationException, IllegalAccessException, NoSuchMethodException {
+        return find(where + " LIMIT 1").get(0);
+    }
+
+    @Override
+    public void delete(E entity) {
+
+    }
+
     private List<E> toList(ResultSet rs) throws SQLException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {
         List<E> result = new ArrayList<>();
         while (rs.next()) {
@@ -127,21 +142,6 @@ public class EntityManager<E> implements DbContext<E> {
             return resultSet.getDate(columnIndex);
         }
         return null;
-    }
-
-    @Override
-    public E findFirst() throws InvocationTargetException, SQLException, InstantiationException, IllegalAccessException, NoSuchMethodException {
-        return find(WHERE_LIMIT_TEMPLATE).get(0);
-    }
-
-    @Override
-    public E findFirst(String where) throws InvocationTargetException, SQLException, InstantiationException, IllegalAccessException, NoSuchMethodException {
-        return find(where + " LIMIT 1").get(0);
-    }
-
-    @Override
-    public void delete(E entity) {
-
     }
 
     private boolean isEntityInDb(E entity) throws IllegalAccessException, InvocationTargetException, SQLException, InstantiationException, NoSuchMethodException {
