@@ -25,19 +25,21 @@ public class Main {
         connector.initDbConnection();
         dbConnection = connector.getDbConnection();
         EntityManager<User> em = new EntityManager<>(User.class, dbConnection);
-        List<User> users = new ArrayList<>();
-        for (int i = 0; i < 10; i++) {
-            users.add(new User(
-                    "pesho" + i,
-                    "pass" + i,
-                    new Date()));
-        }
-        for (User user : users) {
-            em.persist(user);
-        }
-        users = em.find();
-        users
-                .forEach(System.out::println);
+//        List<User> users = new ArrayList<>();
+//        for (int i = 0; i < 10; i++) {
+//            users.add(new User(
+//                    "pesho" + i,
+//                    "pass" + i,
+//                    new Date()));
+//        }
+//        for (User user : users) {
+//            em.persist(user);
+//        }
+//        users = em.find();
+//        users
+//                .forEach(System.out::println);
+        User stamat = new User("stamba", "1234", new Date(), new Date());
 
+        em.persist(stamat);
     }
 }

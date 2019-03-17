@@ -24,6 +24,32 @@ public class EntityManager<E> implements DbContext<E> {
             "SET {0} = ''{1}'' ";
     private static final String WHERE_LIMIT_TEMPLATE =
             "TRUE LIMIT 1;";
+    private static final String SHOW_TABLES_TEMPLATE =
+            "SHOW TABLES LIKE {0}";
+    private static final String CREATE_TABLE_TEMPLATE =
+            "CREATE TABLE {0}({1});";
+    private static final String VARCHAR_DEFAULT =
+            "VARCHAR(250)";
+    private static final String INT_DEFAULT =
+            "INT";
+    private static final String FLOAT_DEFAULT =
+            "FLOAT";
+    private static final String BIG_DECIMAL_DEFAULT =
+            "BIG_DECIMAL";
+    private static final String DATE_DEFAULT =
+            "DATE";
+    private static final String PRIMARY_KEY_TEMPLATE =
+            "PRIMARY KEY";
+    private static final String ALTER_QUERY_TEMPLATE =
+            "ALTER TABLE {0} ";
+    private static final String ADD_COLUMN_TEMPLATE =
+            "ADD COLUMN {0};";
+    private static final String MODIFY_COLUMN_TEMPLATE =
+            "MODIFY COLUMN {0}";
+    private static final String SHOW_TABLE_COLUMNS_TEMPLATE =
+            "SHOW COLUMNS FROM {0};";
+    private static final String SHOW_COLUMN_FIELD_LIKE =
+            "SHOW COLUMNS FROM {0} WHERE Field LIKE {1};";
 
     private Class<E> klass;
 
@@ -37,12 +63,17 @@ public class EntityManager<E> implements DbContext<E> {
 
     @Override
     public boolean persist(E entity) throws IllegalAccessException, SQLException, InstantiationException, NoSuchMethodException, InvocationTargetException {
-        if (!isEntityInDb(entity)) {
-            doInsert(entity);
+        if (!tableExists()) {
+            doCreate();
         } else {
-            doUpdate(entity);
+            doAlter();
         }
-        return false;
+
+        if (!isEntityInDb(entity)) {
+            return doInsert(entity);
+        } else {
+            return doUpdate(entity) != 0;
+        }
     }
 
     @Override
@@ -88,6 +119,161 @@ public class EntityManager<E> implements DbContext<E> {
     @Override
     public void delete(E entity) {
 
+    }
+
+    private void doCreate() throws SQLException {
+        List<String> parsedFields = getAllColumnFields().stream()
+                .map(this::parseColumnToSql)
+                .collect(Collectors.toList());
+        String tableParameterString =
+                String.join(", ", parsedFields);
+        String query = MessageFormat.format(
+                CREATE_TABLE_TEMPLATE,
+                getTableName(),
+                tableParameterString
+        );
+
+        connection.prepareStatement(query).execute();
+    }
+
+    private void doAlter() throws SQLException {
+        manageMissingColumns();
+        manageChangedColumns();
+        renameTableIfNecessary();
+
+
+//        List<Field> columnsToModify = getColumnsToModify();
+//        if (!columnsToModify.isEmpty()) {
+//            for (Field column : columnsToModify) {
+//                query.append(MessageFormat.format(
+//                        MODIFY_COLUMN_TEMPLATE,
+//                        parseColumnToSql(column) +
+//                                ", "
+//                ));
+//            }
+//        }
+    }
+
+    private void renameTableIfNecessary() {
+
+    }
+
+    private void manageChangedColumns() {
+
+    }
+
+    private void manageMissingColumns() throws SQLException {
+        List<Field> columnFields = getAllColumnFields();
+        for (Field field : columnFields) {
+            if (!doesExistInTable(field)) {
+                addColumnToDb(field);
+            }
+        }
+    }
+
+    private boolean doesExistInTable(Field field) throws SQLException {
+        String query = MessageFormat.format(
+                SHOW_COLUMN_FIELD_LIKE,
+                getTableName(),
+                "'" + getColumnName(field) + "'"
+        );
+        ResultSet rs = connection
+                .prepareStatement(query)
+                .executeQuery();
+        return rs.next();
+    }
+
+    private void addColumnToDb(Field field) throws SQLException {
+        StringBuilder query = new StringBuilder();
+        query.append(MessageFormat.format(
+                ALTER_QUERY_TEMPLATE,
+                getTableName())
+        )
+                .append(MessageFormat.format(
+                        ADD_COLUMN_TEMPLATE,
+                        parseColumnToSql(field)
+                ));
+        connection
+                .prepareStatement(query.toString())
+                .execute();
+    }
+
+    private List<Field> getColumnsToModify() {
+        return null;
+    }
+
+    private List<Field> getMissingColumns() throws SQLException {
+        String query = MessageFormat.format(
+                SHOW_TABLE_COLUMNS_TEMPLATE,
+                getTableName()
+        );
+
+        ResultSet rs = connection
+                .prepareStatement(query)
+                .executeQuery();
+        while (rs.next()) {
+            for (int i = 1; i < 7; i++) {
+                System.out.println(rs.getString(i));
+            }
+        }
+
+        return null;
+    }
+
+    private String parseColumnToSql(Field field) {
+        return String.format("%s %s %s",
+                getColumnName(field),
+                getColumnType(field),
+                getColumnSpecification(field));
+    }
+
+    private String getColumnSpecification(Field field) {
+        String specification = "";
+        if (field.isAnnotationPresent(Id.class)) {
+            specification += PRIMARY_KEY_TEMPLATE + " AUTO_INCREMENT";
+        }
+        //TODO: Add not null, auto_increment etc. from annotations
+        return specification;
+    }
+
+    private String getColumnType(Field field) {
+        Class<?> fieldType = field.getType();
+        if (fieldType == String.class) {
+            return VARCHAR_DEFAULT;
+
+        } else if (fieldType == Integer.class ||
+                fieldType == int.class ||
+                fieldType == Long.class ||
+                fieldType == long.class ||
+                fieldType == BigInteger.class) {
+            return INT_DEFAULT;
+
+        } else if (fieldType == Float.class ||
+                fieldType == float.class ||
+                fieldType == Double.class ||
+                fieldType == double.class) {
+            return FLOAT_DEFAULT;
+
+        } else if (fieldType == BigDecimal.class) {
+            return BIG_DECIMAL_DEFAULT;
+
+        } else if (fieldType == Date.class) {
+            return DATE_DEFAULT;
+
+        }
+
+        return null;
+    }
+
+    private boolean tableExists() throws SQLException {
+        String query = MessageFormat.format(
+                SHOW_TABLES_TEMPLATE,
+                "'" + getTableName() + "'"
+        );
+        ResultSet rs = connection.
+                prepareStatement(query)
+                .executeQuery();
+        return rs.next();
     }
 
     private List<E> toList(ResultSet rs) throws SQLException, InvocationTargetException, NoSuchMethodException, InstantiationException, IllegalAccessException {

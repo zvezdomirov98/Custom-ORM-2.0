@@ -22,16 +22,21 @@ public class User {
     @Column(name = "registration_date")
     private Date registrationDate;
 
+    @Column(name = "birth_date")
+    private Date birthDate;
+
     public User() {
 
     }
 
     public User(String username,
                 String password,
-                Date registrationDate) {
+                Date registrationDate,
+                Date birthDate) {
         setUsername(username);
         setPassword(password);
         setRegistrationDate(registrationDate);
+        setBirthDate(birthDate);
     }
 
 
@@ -76,5 +81,13 @@ public class User {
                 ", password='" + password + '\'' +
                 ", registrationDate=" + registrationDate +
                 '}';
+    }
+
+    public Date getBirthDate() {
+        return birthDate;
+    }
+
+    public void setBirthDate(Date birthDate) {
+        this.birthDate = birthDate;
     }
 }
