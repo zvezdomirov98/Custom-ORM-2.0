@@ -3,6 +3,8 @@ package entities;
 import annotations.Column;
 import annotations.Entity;
 import annotations.Id;
+import annotations.generationstrategy.GeneratedValue;
+import annotations.generationstrategy.GenerationType;
 
 import java.util.Date;
 
@@ -10,19 +12,23 @@ import java.util.Date;
 public class User {
 
     @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "id")
     private Long id;
 
-    @Column(name = "username")
+    @Column(name = "username",
+            unique = true,
+            nullable = false)
     private String username;
 
-    @Column(name = "password")
+    @Column(name = "password",
+            nullable = false)
     private String password;
 
     @Column(name = "registration_date")
     private Date registrationDate;
 
-    @Column(name = "birth_date")
+//        @Column(name = "birth_date")
     private Date birthDate;
 
     public User() {

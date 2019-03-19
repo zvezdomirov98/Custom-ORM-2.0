@@ -3,7 +3,10 @@ package orm.manager;
 import annotations.Column;
 import annotations.Entity;
 import annotations.Id;
+import annotations.generationstrategy.GeneratedValue;
+import annotations.generationstrategy.GenerationType;
 
+import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.math.BigDecimal;
@@ -39,7 +42,7 @@ public class EntityManager<E> implements DbContext<E> {
     private static final String DATE_DEFAULT =
             "DATE";
     private static final String PRIMARY_KEY_TEMPLATE =
-            "PRIMARY KEY";
+            "PRIMARY KEY NOT NULL ";
     private static final String ALTER_QUERY_TEMPLATE =
             "ALTER TABLE {0} ";
     private static final String ADD_COLUMN_TEMPLATE =
@@ -50,6 +53,8 @@ public class EntityManager<E> implements DbContext<E> {
             "SHOW COLUMNS FROM {0};";
     private static final String SHOW_COLUMN_FIELD_LIKE =
             "SHOW COLUMNS FROM {0} WHERE Field LIKE {1};";
+    private static final String IDENTITY_TYPE_TEMPLATE =
+            "AUTO_INCREMENT";
 
     private Class<E> klass;
 
@@ -138,9 +143,7 @@ public class EntityManager<E> implements DbContext<E> {
 
     private void doAlter() throws SQLException {
         manageMissingColumns();
-        manageChangedColumns();
-        renameTableIfNecessary();
-
+//        manageChangedColumns();
 
 //        List<Field> columnsToModify = getColumnsToModify();
 //        if (!columnsToModify.isEmpty()) {
@@ -152,14 +155,6 @@ public class EntityManager<E> implements DbContext<E> {
 //                ));
 //            }
 //        }
-    }
-
-    private void renameTableIfNecessary() {
-
-    }
-
-    private void manageChangedColumns() {
-
     }
 
     private void manageMissingColumns() throws SQLException {
@@ -184,40 +179,16 @@ public class EntityManager<E> implements DbContext<E> {
     }
 
     private void addColumnToDb(Field field) throws SQLException {
-        StringBuilder query = new StringBuilder();
-        query.append(MessageFormat.format(
+        String query = MessageFormat.format(
                 ALTER_QUERY_TEMPLATE,
-                getTableName())
-        )
-                .append(MessageFormat.format(
+                getTableName()) +
+                MessageFormat.format(
                         ADD_COLUMN_TEMPLATE,
                         parseColumnToSql(field)
-                ));
+                );
         connection
-                .prepareStatement(query.toString())
-                .execute();
-    }
-
-    private List<Field> getColumnsToModify() {
-        return null;
-    }
-
-    private List<Field> getMissingColumns() throws SQLException {
-        String query = MessageFormat.format(
-                SHOW_TABLE_COLUMNS_TEMPLATE,
-                getTableName()
-        );
-
-        ResultSet rs = connection
                 .prepareStatement(query)
-                .executeQuery();
-        while (rs.next()) {
-            for (int i = 1; i < 7; i++) {
-                System.out.println(rs.getString(i));
-            }
-        }
-
-        return null;
+                .execute();
     }
 
     private String parseColumnToSql(Field field) {
@@ -230,10 +201,49 @@ public class EntityManager<E> implements DbContext<E> {
     private String getColumnSpecification(Field field) {
         String specification = "";
         if (field.isAnnotationPresent(Id.class)) {
-            specification += PRIMARY_KEY_TEMPLATE + " AUTO_INCREMENT";
+            specification += PRIMARY_KEY_TEMPLATE;
         }
-        //TODO: Add not null, auto_increment etc. from annotations
+        specification += getAdditionalProperties(field);
+        if (field.isAnnotationPresent(GeneratedValue.class)) {
+            specification += getGeneratedValuePostfix(field);
+        }
+
         return specification;
+    }
+
+    private String getGeneratedValuePostfix(Field field) {
+        String result = "";
+        GenerationType type = field
+                .getAnnotation(GeneratedValue.class)
+                .strategy();
+        if (type == GenerationType.AUTO ||
+                type == GenerationType.IDENTITY) {
+            result += "AUTO_INCREMENT ";
+        }
+        return result;
+    }
+
+    private String getAdditionalProperties(Field field) {
+        String result = "";
+        Column fieldAnnotation = field.getAnnotation(Column.class);
+        if (fieldAnnotation.unique()) {
+            result += "UNIQUE ";
+        }
+        if (!fieldAnnotation.nullable()) {
+            result += "NOT NULL ";
+        }
+        return result;
+    }
+
+    private String getGenerationStrategy(Field field) {
+        GenerationType generationType = field
+                .getAnnotation(GeneratedValue.class)
+                .strategy();
+        if (generationType.equals(GenerationType.AUTO) ||
+                generationType.equals(GenerationType.IDENTITY)) {
+            return IDENTITY_TYPE_TEMPLATE;
+        }
+        return "";
     }
 
     private String getColumnType(Field field) {
@@ -426,6 +436,7 @@ public class EntityManager<E> implements DbContext<E> {
 
     private List<String> getAllColumnValues(E entity) {
         return Arrays.stream(klass.getDeclaredFields())
+                .filter(field -> field.isAnnotationPresent(Column.class))
                 .map(field -> {
                     try {
                         field.setAccessible(true);
@@ -477,10 +488,6 @@ public class EntityManager<E> implements DbContext<E> {
 
     private void setConnection(Connection connection) {
         this.connection = connection;
-    }
-
-    public Class<E> getKlass() {
-        return klass;
     }
 
     private void setKlass(Class<E> klass) {
