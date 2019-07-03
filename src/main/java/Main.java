@@ -38,8 +38,8 @@ public class Main {
 //        users = em.find();
 //        users
 //                .forEach(System.out::println);
-        User stamat = new User("stamba", "1234", new Date(), new Date());
+        User user1 = new User("user1", "1234", new Date(), new Date());
 
-        em.persist(stamat);
+        em.persist(user1);
     }
 }
